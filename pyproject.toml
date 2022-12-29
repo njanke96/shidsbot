@@ -1,0 +1,9 @@
+[project]
+name = "shidsbot"
+requires-python = ">=3.9"
+version = "0.1.0"
+dependencies = [
+    "discord.py[voice]==2.1.0",
+    "python-dotenv==0.21.0",
+    "youtube_dl==2021.12.17",
+]
