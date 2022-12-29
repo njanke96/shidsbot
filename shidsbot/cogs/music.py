@@ -5,12 +5,13 @@ Taken from discord.py example "basic_voice"
 """
 
 import asyncio
-import logging
 
 import discord
 import youtube_dl
 
 from discord.ext import commands
+
+from shidsbot.bot_logging import log_info
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -35,9 +36,6 @@ ffmpeg_options = {
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-
-logger = logging.getLogger('discord')
-logger.setLevel(logging.INFO)
 
 
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -69,9 +67,20 @@ class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
-    async def play(self, ctx: commands.Context, *, url):
-        """Plays (streams) music from a URL"""
+    @commands.command(name="play")
+    async def play(
+        self,
+        ctx: commands.Context,
+        *,
+        url: str = commands.parameter(
+            description="The URL to play music from (anything supported by youtube-dl.org)"
+        ),
+    ):
+        """
+        Plays music from a URL
+
+        Example: !play https://www.youtube.com/watch?v=cscuCIzItZQ
+        """
 
         def _after(err):
             if err:
@@ -84,6 +93,7 @@ class Music(commands.Cog):
             ctx.voice_client.play(player, after=_after)
 
         await ctx.send(f"Now playing: {player.title}")
+        log_info(f"{ctx.author.name} is now playing: {player.title}")
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
