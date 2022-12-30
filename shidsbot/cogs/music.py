@@ -9,7 +9,7 @@ import asyncio
 import discord
 import youtube_dl
 
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from shidsbot.bot_logging import log_info
 
@@ -63,8 +63,9 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 
 class Music(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.disconnect_idle_voice_clients.start()
 
     @commands.command(name="play")
     async def play(
@@ -86,7 +87,12 @@ class Music(commands.Cog):
                 ctx.send(f"Could not play, reason: {err}")
 
         async with ctx.typing():
-            player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
+            try:
+                player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
+            except youtube_dl.utils.DownloadError:
+                await ctx.send("I can't play that. youtube-dl doesn't like that URL.")
+                await self.disconnect_voice_client(ctx)
+                return
 
             # noinspection PyUnresolvedReferences
             ctx.voice_client.play(player, after=_after)
@@ -98,7 +104,7 @@ class Music(commands.Cog):
     async def stop(self, ctx: commands.Context):
         """Stops and disconnects the bot from voice"""
 
-        await ctx.voice_client.disconnect(force=True)
+        await self.disconnect_voice_client(ctx)
         await ctx.send("Stopped playing.")
 
     @play.before_invoke
@@ -110,3 +116,20 @@ class Music(commands.Cog):
                 await ctx.send("You are not connected to a voice channel.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
+
+    @staticmethod
+    async def disconnect_voice_client(ctx: commands.Context):
+        await ctx.voice_client.disconnect(force=True)
+
+    @tasks.loop(seconds=30)
+    async def disconnect_idle_voice_clients(self):
+        for client in self.bot.voice_clients:
+            client: discord.VoiceClient
+
+            if not client.is_playing():
+                log_info("Disconnecting an idle voice client...")
+                await client.disconnect()
+
+    @disconnect_idle_voice_clients.before_loop
+    async def before_disconnect_idle_voice_clients(self):
+        await self.bot.wait_until_ready()
