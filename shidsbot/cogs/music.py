@@ -5,14 +5,16 @@ Taken from discord.py example "basic_voice"
 """
 
 import asyncio
-from typing import Optional
+from typing import Optional, Tuple, List, Union
 
 import discord
 import youtube_dl
 
 from discord.ext import commands, tasks
 
-from shidsbot.bot_logging import log_info
+from shidsbot.bot_logging import log_info, log_error
+
+TextOrVoiceChannel = Union[discord.TextChannel, discord.VoiceChannel]
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -66,6 +68,15 @@ class YTDLSource(discord.PCMVolumeTransformer):
 class Music(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+        # messages to be sent in the event loop (populated by _after in the play command)
+        self.message_queue: List[Tuple[TextOrVoiceChannel, str]] = []
+
+        # music to start playing next tick (for !loop)
+        self.play_next_tick: Optional[Tuple[discord.VoiceClient, str]] = None
+
+        # start loops
+        self.tick.start()
         self.disconnect_idle_voice_clients.start()
 
     @commands.command(name="play")
@@ -74,8 +85,9 @@ class Music(commands.Cog):
         ctx: commands.Context,
         *,
         url: str = commands.parameter(
-            description="The URL to play music from (anything supported by youtube-dl.org)"
+            description="The URL or search to play music from"
         ),
+        loop: bool = False
     ):
         """
         Plays music from a URL
@@ -85,7 +97,16 @@ class Music(commands.Cog):
 
         def _after(err):
             if err:
-                ctx.send(f"Could not play, reason: {err}")
+                self.message_queue.append(
+                    (ctx.channel, f"Could not play, reason: {err}")
+                )
+
+            voice_client_after: Optional[discord.VoiceClient] = ctx.voice_client
+            if not voice_client_after:
+                return
+
+            if loop:
+                self.play_next_tick = (voice_client_after, url)
 
         async with ctx.typing():
             try:
@@ -108,8 +129,24 @@ class Music(commands.Cog):
 
             voice_client.play(player, after=_after)
 
-        await ctx.send(f"Now playing: {player.title}")
+        await ctx.send(f"Now playing: {player.title}" + (". Will loop until !stop command is used." if loop else ""))
         log_info(f"{ctx.author.name} is now playing: {player.title}")
+
+    @commands.command()
+    async def loop(
+        self,
+        ctx: commands.Context,
+        *,
+        url: str = commands.parameter(
+            description="The URL or search to play music from"
+        ),
+    ):
+        """
+        Plays and loops music from a URL
+
+        Example: !loop https://www.youtube.com/watch?v=cscuCIzItZQ
+        """
+        await self.play(ctx, url=url, loop=True)
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
@@ -122,6 +159,41 @@ class Music(commands.Cog):
     async def disconnect_voice_client(ctx: commands.Context):
         await ctx.voice_client.disconnect(force=True)
 
+    @tasks.loop(seconds=1)
+    async def tick(self):
+        # send messages in queue
+        for message in self.message_queue:
+            await message[0].send(message[1])
+
+        self.message_queue = []
+
+        # loop music
+        if self.play_next_tick is None:
+            return
+
+        voice_client = self.play_next_tick[0]
+        url = self.play_next_tick[1]
+
+        # clear flag
+        self.play_next_tick = None
+
+        def _after(err):
+            if err:
+                log_error(f"Could not loop song due to an error: {err}")
+                return
+
+            # set the flag
+            self.play_next_tick = (voice_client, url)
+
+        # re-create the YTDLSource
+        player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
+
+        if voice_client.is_connected():
+            if voice_client.is_playing():
+                voice_client.stop()
+
+            voice_client.play(player, after=_after)
+
     @tasks.loop(seconds=30)
     async def disconnect_idle_voice_clients(self):
         for client in self.bot.voice_clients:
@@ -132,5 +204,5 @@ class Music(commands.Cog):
                 await client.disconnect()
 
     @disconnect_idle_voice_clients.before_loop
-    async def before_disconnect_idle_voice_clients(self):
+    async def before_loops(self):
         await self.bot.wait_until_ready()
