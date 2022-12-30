@@ -5,6 +5,7 @@ Taken from discord.py example "basic_voice"
 """
 
 import asyncio
+from typing import Optional
 
 import discord
 import youtube_dl
@@ -94,8 +95,18 @@ class Music(commands.Cog):
                 await self.disconnect_voice_client(ctx)
                 return
 
-            # noinspection PyUnresolvedReferences
-            ctx.voice_client.play(player, after=_after)
+            voice_client: Optional[discord.VoiceClient] = ctx.voice_client
+            if voice_client is None:
+                if ctx.author.voice:
+                    voice_client = await ctx.author.voice.channel.connect()
+                else:
+                    await ctx.send("You are not connected to a voice channel.")
+                    return
+
+            elif voice_client.is_playing():
+                voice_client.stop()
+
+            voice_client.play(player, after=_after)
 
         await ctx.send(f"Now playing: {player.title}")
         log_info(f"{ctx.author.name} is now playing: {player.title}")
@@ -106,16 +117,6 @@ class Music(commands.Cog):
 
         await self.disconnect_voice_client(ctx)
         await ctx.send("Stopped playing.")
-
-    @play.before_invoke
-    async def ensure_voice(self, ctx):
-        if ctx.voice_client is None:
-            if ctx.author.voice:
-                await ctx.author.voice.channel.connect()
-            else:
-                await ctx.send("You are not connected to a voice channel.")
-        elif ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
 
     @staticmethod
     async def disconnect_voice_client(ctx: commands.Context):
