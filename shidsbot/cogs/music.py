@@ -1,7 +1,7 @@
 """
 Music commands
 
-Taken from discord.py example "basic_voice"
+Excerpts from discord.py example "basic_voice"
 """
 
 import asyncio
@@ -118,7 +118,11 @@ class Music(commands.Cog):
 
             voice_client: Optional[discord.VoiceClient] = ctx.voice_client
             if voice_client is None:
-                if ctx.author.voice:
+                if not hasattr(ctx.author, "voice"):
+                    await ctx.send("I can't play music in here.")
+                    return
+
+                if ctx.author.voice is not None:
                     voice_client = await ctx.author.voice.channel.connect()
                 else:
                     await ctx.send("You are not connected to a voice channel.")
@@ -157,7 +161,8 @@ class Music(commands.Cog):
 
     @staticmethod
     async def disconnect_voice_client(ctx: commands.Context):
-        await ctx.voice_client.disconnect(force=True)
+        if ctx.voice_client is not None:
+            await ctx.voice_client.disconnect(force=True)
 
     @tasks.loop(seconds=1)
     async def tick(self):
