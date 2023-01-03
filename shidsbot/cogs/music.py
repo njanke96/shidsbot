@@ -151,6 +151,21 @@ class Music(commands.Cog):
         Example: !loop https://www.youtube.com/watch?v=cscuCIzItZQ
         """
         await self.play(ctx, url=url, loop=True)
+        
+    @commands.command()
+    async def jeebus(self, ctx: commands.Context):
+        """Plays christian rock"""
+        await self.play(ctx, url="https://harvestersfm.radioca.st/NB")
+        
+    @commands.command()
+    async def jetfm(self, ctx: commands.Context):
+        """Plays 98.9 Jet FM"""
+        await self.play(ctx, url="https://vistaradio.streamb.live/SB00079")
+        
+    @commands.command()
+    async def jsrclassics(self, ctx: commands.Context):
+        """Plays JetStreamRadio Classics"""
+        await self.play(ctx, url="https://listen.jetstreamradio.com:8030/autodj")
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
@@ -208,6 +223,7 @@ class Music(commands.Cog):
                 log_info("Disconnecting an idle voice client...")
                 await client.disconnect()
 
+    @tick.before_loop
     @disconnect_idle_voice_clients.before_loop
     async def before_loops(self):
         await self.bot.wait_until_ready()
