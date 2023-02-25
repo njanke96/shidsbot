@@ -8,7 +8,7 @@ import asyncio
 from typing import Optional, Tuple, List, Union
 
 import discord
-import youtube_dl
+import yt_dlp as youtube_dl
 
 from discord.ext import commands, tasks
 
