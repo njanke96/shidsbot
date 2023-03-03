@@ -70,10 +70,11 @@ class Racing(commands.Cog):
                             index + 1,
                             record["driver_name"],
                             format_ms_time(record["lap_time_ms"]),
+                            f"{record['grip_level']:.2f}"
                         )
                         for index, record in enumerate(records)
                     ],
-                    headers=["Position", "Driver", "Lap Time"],
+                    headers=["Position", "Driver", "Lap Time", "Grip Level"],
                     tablefmt="grid",
                 )
 
@@ -84,9 +85,9 @@ class Racing(commands.Cog):
                 )
                 
     @get_top_records.error
-    async def command_error(self, ctx, error):
+    async def laptimes_command_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("You are missing an argument, check !help commandnamehere")
+            await ctx.send("You are missing an argument, check !help laptimes")
 
     @tasks.loop(seconds=RECORD_CHECK_INTERVAL)
     async def check_recent_records(self):
@@ -124,6 +125,6 @@ class Racing(commands.Cog):
                     await racing_channel.send(
                         f"\n**New Server Record**\n"
                         f"**{record['driver_name']}** set a server record on "
-                        f"**{record['track_name']}/{record['track_config']}** using the **{record['car_model']}** "
+                        f"**{record['track_name']}/{record['track_config']}** for the **{record['car_model']}** "
                         f"with a time of **{format_ms_time(record['lap_time_ms'])}** !"
                     )
