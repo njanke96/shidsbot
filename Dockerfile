@@ -16,10 +16,12 @@ WORKDIR /app
 COPY shidsbot/ /app/shidsbot
 COPY .env /app
 COPY pyproject.toml /app
+COPY docker-entrypoint.sh /app
+RUN chmod +x docker-entrypoint.sh
 
 # python packages
 RUN pip install .
 
-ENTRYPOINT python3 /app/shidsbot/main.py
+ENTRYPOINT /app/docker-entrypoint.sh
 
 # Additional args can be passed to docker run

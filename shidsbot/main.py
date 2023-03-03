@@ -3,9 +3,9 @@ import os
 
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
 from cogs.music import Music
+from cogs.racing import Racing
 from bot_logging import log_info
 
 intents = discord.Intents.default()
@@ -26,10 +26,11 @@ async def on_ready():
 async def main():
     async with bot:
         await bot.add_cog(Music(bot))
+        await bot.add_cog(Racing(bot))
         await bot.start(os.environ["DISCORD_TOKEN"])
 
 
 if __name__ == "__main__":
     discord.utils.setup_logging()
-    load_dotenv()
     asyncio.run(main())
+

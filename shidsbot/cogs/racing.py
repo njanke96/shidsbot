@@ -6,7 +6,7 @@ from httpx import AsyncClient
 from shidsbot.bot_logging import log_error
 from tabulate import tabulate
 
-ACSPS_URL = environ.get("ACSPS_HOST", "http://127.0.0.1:8000")
+ACSPS_URL = environ.get("ACSPS_URL", "http://127.0.0.1:8000")
 
 RECORD_CHECK_INTERVAL = 5
 RACING_CHANNEL_ID = 1069836735439192114
@@ -30,11 +30,13 @@ class Racing(commands.Cog):
         # the most recent announced lap server record
         self.most_recent_record: datetime | None = None
 
+        # start loop
+        self.check_recent_records.start()
+
     @commands.command(name="laptimes")
     async def get_top_records(
         self,
         ctx: commands.Context,
-        *,
         track: str = commands.parameter(
             description="The name of a track",
         ),
@@ -67,7 +69,7 @@ class Racing(commands.Cog):
                         (
                             index + 1,
                             record["driver_name"],
-                            record["lap_time_ms"],
+                            format_ms_time(record["lap_time_ms"]),
                         )
                         for index, record in enumerate(records)
                     ],
@@ -80,6 +82,11 @@ class Racing(commands.Cog):
                 await ctx.send(
                     f"Top lap times for **{track}/{config}** in the {car}:\n{table}"
                 )
+                
+    @get_top_records.error
+    async def command_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("You are missing an argument, check !help commandnamehere")
 
     @tasks.loop(seconds=RECORD_CHECK_INTERVAL)
     async def check_recent_records(self):
@@ -92,7 +99,7 @@ class Racing(commands.Cog):
                 )
                 return
 
-            str_to_datetime = lambda s: datetime.isoformat(s.replace("Z", "+00:00"))
+            str_to_datetime = lambda s: datetime.fromisoformat(s.replace("Z", "+00:00"))
 
             result_json = result.json()
             timestamp = str_to_datetime(result_json["latest_timestamp"])
@@ -115,7 +122,8 @@ class Racing(commands.Cog):
 
                 for record in new_records:
                     await racing_channel.send(
-                        f"{record['driver_name']} set a server record on "
-                        f"{record['track_name']}/{record['track_config']} using car {record['car_model']} "
-                        f"with a time of {format_ms_time(record['lap_time_ms'])} !"
+                        f"\n**New Server Record**\n"
+                        f"**{record['driver_name']}** set a server record on "
+                        f"**{record['track_name']}/{record['track_config']}** using the **{record['car_model']}** "
+                        f"with a time of **{format_ms_time(record['lap_time_ms'])}** !"
                     )
