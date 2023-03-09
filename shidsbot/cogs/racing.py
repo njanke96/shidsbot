@@ -69,19 +69,20 @@ class Racing(commands.Cog):
                         (
                             index + 1,
                             record["driver_name"],
+                            record["car"],
                             format_ms_time(record["lap_time_ms"]),
                             f"{record['grip_level']:.2f}"
                         )
                         for index, record in enumerate(records)
                     ],
-                    headers=["Position", "Driver", "Lap Time", "Grip Level"],
+                    headers=["Position", "Driver", "Car", "Lap Time", "Grip Level"],
                     tablefmt="grid",
                 )
 
                 table = f"\n```\n{table}\n```\n"
 
                 await ctx.send(
-                    f"Top lap times for **{track}/{config}** in the {car}:\n{table}"
+                    f"Top lap times for **{track}/{config}** for car/class {perf_class}:\n{table}"
                 )
                 
     @get_top_records.error
@@ -125,6 +126,6 @@ class Racing(commands.Cog):
                     await racing_channel.send(
                         f"\n**New Server Record**\n"
                         f"**{record['driver_name']}** set a server record on "
-                        f"**{record['track_name']}/{record['track_config']}** for the **{record['car_model']}** "
+                        f"**{record['track_name']}/{record['track_config']}** for the class/car **{record['perf_class']}** "
                         f"with a time of **{format_ms_time(record['lap_time_ms'])}** !"
                     )
