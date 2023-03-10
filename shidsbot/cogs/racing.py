@@ -37,53 +37,12 @@ class Racing(commands.Cog):
     async def get_top_records(
         self,
         ctx: commands.Context,
-        track: str = commands.parameter(
-            description="The name of a track",
-        ),
-        config: str = commands.parameter(description="The track configuration"),
-        car: str = commands.parameter(description="The name of a car"),
     ):
         """
-        Get top10 lap records given the arguments
+        Get top10 lap records link
         """
         async with ctx.typing():
-            async with self.http_client() as client:
-                result = await client.get(
-                    "/records/top",
-                    params={
-                        "track_name": track,
-                        "track_config": config,
-                        "car_model": car,
-                    },
-                )
-
-                if result.status_code != 200:
-                    await ctx.send("The server responded with an error.")
-                    return
-
-                result_json = result.json()
-                records: list[dict] = result_json["records"]
-
-                table = tabulate(
-                    [
-                        (
-                            index + 1,
-                            record["driver_name"],
-                            record["car"],
-                            format_ms_time(record["lap_time_ms"]),
-                            f"{record['grip_level']:.2f}"
-                        )
-                        for index, record in enumerate(records)
-                    ],
-                    headers=["Position", "Driver", "Car", "Lap Time", "Grip Level"],
-                    tablefmt="grid",
-                )
-
-                table = f"\n```\n{table}\n```\n"
-
-                await ctx.send(
-                    f"Top lap times for **{track}/{config}** for car/class {perf_class}:\n{table}"
-                )
+            await ctx.send("http://montreal.codejank.ca:8000")
                 
     @get_top_records.error
     async def laptimes_command_error(self, ctx, error):
