@@ -2,12 +2,12 @@ from datetime import datetime
 from os import environ
 
 from discord.ext import commands, tasks
-from httpx import AsyncClient
+from httpx import AsyncClient, ConnectError
 from shidsbot.bot_logging import log_error
-from tabulate import tabulate
 
 ACSPS_URL = environ.get("ACSPS_URL", "http://127.0.0.1:8000")
 
+MAX_RECONNECT_ATTEMPTS = 3
 RECORD_CHECK_INTERVAL = 5
 RACING_CHANNEL_ID = 1069836735439192114
 
@@ -33,6 +33,9 @@ class Racing(commands.Cog):
         # start loop
         self.check_recent_records.start()
 
+        # reconnect attempts
+        self.reconnect_attempts = 0
+
     @commands.command(name="laptimes")
     async def get_top_records(
         self,
@@ -42,6 +45,7 @@ class Racing(commands.Cog):
         Get top10 lap records link
         """
         async with ctx.typing():
+            # noinspection HttpUrlsUsage
             await ctx.send("http://montreal.codejank.ca:8000")
                 
     @get_top_records.error
@@ -52,7 +56,22 @@ class Racing(commands.Cog):
     @tasks.loop(seconds=RECORD_CHECK_INTERVAL)
     async def check_recent_records(self):
         async with self.http_client() as client:
-            result = await client.get("/records/server")
+            try:
+                result = await client.get("/records/server")
+            except ConnectError:
+                if self.reconnect_attempts == MAX_RECONNECT_ATTEMPTS:
+                    log_error(f"Maximum reconnect attempts to acsps server exceeded, stopping task.")
+                    self.check_recent_records.stop()
+                    return
+
+                log_error(
+                    f"Could not connect to acsps server at {client.base_url}. "
+                    f"{MAX_RECONNECT_ATTEMPTS - self.reconnect_attempts} attempts remaining."
+                )
+                self.reconnect_attempts += 1
+                return
+
+            self.reconnect_attempts = 0
 
             if result.status_code != 200:
                 log_error(
@@ -85,6 +104,7 @@ class Racing(commands.Cog):
                     await racing_channel.send(
                         f"\n**New Server Record**\n"
                         f"**{record['driver_name']}** set a server record on "
-                        f"**{record['track_name']}/{record['track_config']}** for the class/car **{record['perf_class']}** "
+                        f"**{record['track_name']}/{record['track_config']}** for "
+                        f"the class/car **{record['perf_class']}** "
                         f"with a time of **{format_ms_time(record['lap_time_ms'])}** !"
                     )
