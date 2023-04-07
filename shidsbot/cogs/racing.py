@@ -42,7 +42,7 @@ class Racing(commands.Cog):
         Get top10 lap records link
         """
         async with ctx.typing():
-            await ctx.send("http://montreal.codejank.ca:8000")
+            await ctx.send("http://montreal.codejank.ca:8000/records")
                 
     @get_top_records.error
     async def laptimes_command_error(self, ctx, error):
