@@ -14,7 +14,6 @@ RUN apt-get update -y && \
 # copy code
 WORKDIR /app
 COPY shidsbot/ /app/shidsbot
-COPY .env /app
 COPY pyproject.toml /app
 COPY docker-entrypoint.sh /app
 RUN chmod +x docker-entrypoint.sh
